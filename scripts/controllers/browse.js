@@ -1,6 +1,6 @@
 'use strict';
 
-app.controller('BrowseController', function($scope, $routeParams, toaster, Task, Auth, Comment) {
+app.controller('BrowseController', function($scope, $routeParams, toaster, Task, Auth, Comment, Offer) {
 
 	$scope.searchTask = '';
 	$scope.tasks = Task.all;
@@ -21,6 +21,12 @@ app.controller('BrowseController', function($scope, $routeParams, toaster, Task,
 		// We check isTaskCreator only if user signedIn
 		// so we don't have to check every time normal guests open the task
 		if($scope.signedIn()) {
+
+			// Check if the current logged in user has already made an offer
+			Offer.isOffered(task.$id).then(function(data) {
+				$scope.alreadyOffered = data;
+			});
+
 			// Check if the current login user is the creator of selected task
 			$scope.isTaskCreator = Task.isCreator;
 
@@ -29,6 +35,12 @@ app.controller('BrowseController', function($scope, $routeParams, toaster, Task,
 		}
 
 		$scope.comments = Comment.comments(task.$id);
+
+		$scope.offers = Offer.offers(task.$id);
+
+		$scope.block = false;
+
+		$scope.isOfferMaker = Offer.isMaker;
 	};
 
 	// --------------- TASK ---------------
@@ -48,6 +60,37 @@ app.controller('BrowseController', function($scope, $routeParams, toaster, Task,
 
 		Comment.addComment($scope.selectedTask.$id, comment).then(function() {
 			$scope.content = '';
+		});
+	};
+
+	$scope.makeOffer = function() {
+		var offer = {
+			total: $scope.total,
+			uid: $scope.user.uid,
+			name:$scope.user.profile.name,
+			gravatar: $scope.user.profile.gravatar
+		}
+
+		Offer.makeOffer($scope.selectedTask.$id, offer).then(function(){
+			toaster.pop('success', 'Your offer has been placed');
+			$scope.total = '';
+			$scope.block = true;
+			$scope.alreadyOffered = true;
+		});
+	};
+
+	$scope.cancelOffer = function(offerId) {
+		Offer.cancelOffer($scope.selectedTask.$id, offerId).then(function() {
+			toaster.pop('success', "Your offer has been cancelled");
+
+			$scope.alreadyOffered = false;
+			$scope.block = false;
+		});
+	};
+
+	$scope.acceptOffer = function(offerId, runnerId) {
+		Offer.acceptOffer($scope.selectedTask.$id, offerId, runnerId).then(function() {
+			toaster.pop('success', "Offer is accepted");
 		});
 	};
 
